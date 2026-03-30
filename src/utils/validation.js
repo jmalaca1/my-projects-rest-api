@@ -1,9 +1,12 @@
 import { z } from 'zod'
 import { ApiError } from './errors.js'
+import { TASK_STATUSES } from './constants.js'  
+
+const statusMessage = `Status must be one of: ${TASK_STATUSES.join(',')}.`
 
 const idParamSchema = z
   .string()
-  .regex(/^\d+$/, {'ID must be a positive integer.'})
+  .regex(/^\d+$/, { message: 'ID must be a positive integer.'})
   .transform((value) => Number(value))
   .refine((value) => Number.isSafeInteger(value) && value > 0, {
     error: 'ID must be a positive integer.',
@@ -27,6 +30,43 @@ const projectPatchSchema = z
     description: z
     .string({ error: 'Description must be a string.'})
     .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['body'],
+        message: 'Provide at least one field to update.',
+      })
+    }
+  })
+
+const taskCreateSchema = z.strictobject({
+  title: z
+    .string({ error: 'Task title is required.' })
+    .trim()
+    .min(1,{ error: 'Task title is required.'}),
+  description: z.string({ error: 'Description must be a string.'}).optional(),
+  status: z
+    .string({ error: statusMessage})
+    .refine((value) => TASK_STATUSES.includes(value), { error: statusMessage})
+    .optional()
+  })
+
+const taskPatchSchema = z
+  .strictobject({
+    title: z
+      .string({ error: 'Task title must be non-empty string.' })
+      .trim()
+      .min(1,{ error: 'Task title must be non-empty string.'})
+      .optional(),
+    description: z
+    .string({ error: 'Description must be a string.'})
+    .optional(),
+    status: z
+    .string({ error: statusMessage})
+    .refine((value) => TASK_STATUSES.includes(value), { error: statusMessage})
+    .optional()
   })
   .superRefine((value, ctx) => {
     if (Object.keys(value).length === 0) {
@@ -98,3 +138,10 @@ export function validateProjectPatch(payload) {
   return validateWithSchema(payload, projectPatchSchema)
 }
 
+export function validateTaskCreate(payload) {
+  return validateWithSchema(payload, taskCreateSchema)
+}
+
+export function validateTaskPatch(payload) {
+  return validateWithSchema(payload, taskPatchSchema)
+}
