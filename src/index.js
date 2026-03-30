@@ -1,4 +1,4 @@
-import { Hono } from "hono"
+import { Hono } from 'hono'
 import projects from './routes/projects.js'
 import tasks from './routes/tasks.js'
 import { isApiError } from './utils/errors.js'
@@ -16,7 +16,7 @@ api.route('/projects', projects)
 api.route('/tasks', tasks)
 app.route('/api', api)
 
-app.notFound((c)=>{
+app.notFound((c) => {
   return sendError(c, 404, 'NOT_FOUND', 'Route not found.')
 })
 

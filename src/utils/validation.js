@@ -1,36 +1,41 @@
 import { z } from 'zod'
 import { ApiError } from './errors.js'
-import { TASK_STATUSES } from './constants.js'  
+import { TASK_STATUSES } from './constants.js'
 
 const statusMessage = `Status must be one of: ${TASK_STATUSES.join(',')}.`
 
 const idParamSchema = z
   .string()
-  .regex(/^\d+$/, { message: 'ID must be a positive integer.'})
+  .regex(/^\d+$/, { message: 'ID must be a positive integer.' })
   .transform((value) => Number(value))
   .refine((value) => Number.isSafeInteger(value) && value > 0, {
     error: 'ID must be a positive integer.',
   })
 
-const projectCreateSchema = z.strictobject({
-  name: z
-    .string({ error: 'Project name is required.' })
-    .trim()
-    .min(1,{ error: 'Project name is required.'}),
-  description: z.string({ error: 'Description must be a string.'}).optional(),
+const projectCreateSchema = z
+  .object({
+    name: z
+      .string({ error: 'Project name is required.' })
+      .trim()
+      .min(1, { error: 'Project name is required.' }),
+    description: z
+      .string({ error: 'Description must be a string.' })
+      .optional(),
   })
+  .strict()
 
 const projectPatchSchema = z
-  .strictobject({
+  .object({
     name: z
       .string({ error: 'Project name must be non-empty string.' })
       .trim()
-      .min(1,{ error: 'Project name must be non-empty string.'})
+      .min(1, { error: 'Project name must be non-empty string.' })
       .optional(),
     description: z
-    .string({ error: 'Description must be a string.'})
-    .optional(),
+      .string({ error: 'Description must be a string.' })
+      .optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     if (Object.keys(value).length === 0) {
       ctx.addIssue({
@@ -41,33 +46,42 @@ const projectPatchSchema = z
     }
   })
 
-const taskCreateSchema = z.strictobject({
-  title: z
-    .string({ error: 'Task title is required.' })
-    .trim()
-    .min(1,{ error: 'Task title is required.'}),
-  description: z.string({ error: 'Description must be a string.'}).optional(),
-  status: z
-    .string({ error: statusMessage})
-    .refine((value) => TASK_STATUSES.includes(value), { error: statusMessage})
-    .optional()
+const taskCreateSchema = z
+  .object({
+    title: z
+      .string({ error: 'Task title is required.' })
+      .trim()
+      .min(1, { error: 'Task title is required.' }),
+    description: z
+      .string({ error: 'Description must be a string.' })
+      .optional(),
+    status: z
+      .string({ error: statusMessage })
+      .refine((value) => TASK_STATUSES.includes(value), {
+        error: statusMessage,
+      })
+      .optional(),
   })
+  .strict()
 
 const taskPatchSchema = z
-  .strictobject({
+  .object({
     title: z
       .string({ error: 'Task title must be non-empty string.' })
       .trim()
-      .min(1,{ error: 'Task title must be non-empty string.'})
+      .min(1, { error: 'Task title must be non-empty string.' })
       .optional(),
     description: z
-    .string({ error: 'Description must be a string.'})
-    .optional(),
+      .string({ error: 'Description must be a string.' })
+      .optional(),
     status: z
-    .string({ error: statusMessage})
-    .refine((value) => TASK_STATUSES.includes(value), { error: statusMessage})
-    .optional()
+      .string({ error: statusMessage })
+      .refine((value) => TASK_STATUSES.includes(value), {
+        error: statusMessage,
+      })
+      .optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     if (Object.keys(value).length === 0) {
       ctx.addIssue({
@@ -100,13 +114,12 @@ function mapZodIssuesToDetails(issues) {
   for (const issue of issues) {
     if (issue.code === 'unrecognized_keys') {
       for (const key of issue.keys) {
-        details.push({ field: key, issue: 'Field is not allowed.'})
+        details.push({ field: key, issue: 'Field is not allowed.' })
       }
       continue
-
     }
     if (issue.code === 'invalid_type' && issue.path.length === 0) {
-      details.push ({
+      details.push({
         field: 'body',
         issue: 'Request body must be a JSON object.',
       })
@@ -124,7 +137,7 @@ function validateWithSchema(payload, schema) {
   const result = schema.safeParse(payload)
 
   if (result.success) {
-    return[]
+    return []
   }
 
   return mapZodIssuesToDetails(result.error.issues)
