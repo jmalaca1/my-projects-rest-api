@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { getDb } from '../data/db.js'
-import {  createTask, listTaskByProject } from '../data/store.js'
+import { createTask, listTaskByProject } from '../data/tasks.repository.js'
 import {
   listProjects,
   getProjectById, 
@@ -80,7 +80,7 @@ projects.post('/:id/tasks', async(c) => {
     )
   }
 
-  const task = createTask(projectId, payload)
+  const task = await createTask(db, projectId, payload)
   c.header('Location', `/api/tasks/${task.id}`)
   return sendResource(c, task, 201)
 })
