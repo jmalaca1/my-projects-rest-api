@@ -8,6 +8,20 @@
       "when": 1775445041450,
       "tag": "0000_overrated_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776044523231,
+      "tag": "0001_free_sentinel",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776044955620,
+      "tag": "0002_flashy_synch",
+      "breakpoints": true
     }
   ]
 }
