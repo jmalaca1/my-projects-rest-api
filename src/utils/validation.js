@@ -147,8 +147,8 @@ const loginSchema = z.strictObject({
 
 const refreshSchema = z.strictObject({
   refreshToken: z
-  .string({ error: 'Refresh token is required.' }),
-  .min(1, { error: 'Refresh token is required.' }),
+    .string({ required_error: 'Refresh token is required.' })
+    .min(1, { message: 'Refresh token is required.' }),
 })
 
 const logoutSchema = z.strictObject({
