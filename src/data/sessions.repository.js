@@ -23,7 +23,7 @@ export async function findSessionByTokenHash(db, tokenHash) {
   return session || null
 }
 
-export async function deleteSessionById(db, tokenHash) {
+export async function deleteSessionByTokenHash(db, tokenHash) {
   const deleted = await db
     .delete(sessions)
     .where(eq(sessions.tokenHash, tokenHash))
