@@ -97,7 +97,7 @@ auth.post('/refresh', async (c) => {
   }
 
   const db = getDb(c.env.DB)
-  const tokenHash = await hashToken(payload.refreshToken)
+  const tokenHash = await hashToken(payload.refresh_Token)
   const session = await findSessionByTokenHash(db, tokenHash)
 
   if (!session) {
