@@ -1,33 +1,35 @@
 import { Hono } from 'hono'
 import { getDb } from '../data/db.js'
-import { createTask, listTaskByProject } from '../data/tasks.repository.js'
+import { createTask, listTasksByProject } from '../data/tasks.repository.js'
 import {
   listProjects,
-  getProjectById, 
-  createProject, 
-  updateProject, 
-  deleteProject
+  createProject,
+  updateProject,
+  deleteProject,
+  getProjectById,
 } from '../data/projects.repository.js'
 
 import { parseJsonBody } from '../utils/body.js'
 import { ApiError } from '../utils/errors.js'
 import { sendCollection, sendResource } from '../utils/response.js'
-import { 
+import {
   parseIdParam,
-  validateProjectCreate, 
-  validateProjectPatch, 
-  validateTaskCreate 
+  validateProjectCreate,
+  validateProjectPatch,
+  validateTaskCreate,
 } from '../utils/validation.js'
 
 const projects = new Hono()
 
-projects.get('/', async(c) => {
+projects.get('/', async (c) => {
+  const userId = c.get('user').sub
   const db = getDb(c.env.DB)
-  const data = await listProjects(db)
+  const data = await listProjects(db, userId)
   return sendCollection(c, data)
 })
 
 projects.post('/', async (c) => {
+  const userId = c.get('user').sub
   const payload = await parseJsonBody(c)
   const details = validateProjectCreate(payload)
 
@@ -41,28 +43,30 @@ projects.post('/', async (c) => {
   }
 
   const db = getDb(c.env.DB)
-  const project = await createProject(db, payload)
+  const project = await createProject(db, userId, payload)
   c.header('Location', `/api/projects/${project.id}`)
   return sendResource(c, project, 201)
 })
 
 projects.get('/:id/tasks', async (c) => {
+  const userId = c.get('user').sub
   const projectId = parseIdParam(c.req.param('id'))
   const db = getDb(c.env.DB)
-  const project = await getProjectById(db, projectId)
+  const project = await getProjectById(db, projectId, userId)
 
   if (!project) {
     throw new ApiError(404, 'NOT_FOUND', 'Project not found.')
   }
-  
+
   const data = await listTasksByProject(db, projectId)
   return sendCollection(c, data)
 })
 
-projects.post('/:id/tasks', async(c) => {
+projects.post('/:id/tasks', async (c) => {
+  const userId = c.get('user').sub
   const projectId = parseIdParam(c.req.param('id'))
   const db = getDb(c.env.DB)
-  const project = await getProjectById(db, projectId)
+  const project = await getProjectById(db, projectId, userId)
 
   if (!project) {
     throw new ApiError(404, 'NOT_FOUND', 'Project not found.')
@@ -85,11 +89,12 @@ projects.post('/:id/tasks', async(c) => {
   return sendResource(c, task, 201)
 })
 
-projects.get('/:id', async(c) => {
+projects.get('/:id', async (c) => {
+  const userId = c.get('user').sub
   const id = parseIdParam(c.req.param('id'))
-  const db = getDb(c.env.DB)
 
-  const project = await getProjectById(db, id)
+  const db = getDb(c.env.DB)
+  const project = await getProjectById(db, id, userId)
 
   if (!project) {
     throw new ApiError(404, 'NOT_FOUND', 'Project not found.')
@@ -99,6 +104,7 @@ projects.get('/:id', async(c) => {
 })
 
 projects.patch('/:id', async (c) => {
+  const userId = c.get('user').sub
   const id = parseIdParam(c.req.param('id'))
   const payload = await parseJsonBody(c)
   const details = validateProjectPatch(payload)
@@ -113,7 +119,7 @@ projects.patch('/:id', async (c) => {
   }
 
   const db = getDb(c.env.DB)
-  const updatedProject = await updateProject(db, id, payload)
+  const updatedProject = await updateProject(db, id, userId, payload)
 
   if (!updatedProject) {
     throw new ApiError(404, 'NOT_FOUND', 'Project not found.')
@@ -123,9 +129,10 @@ projects.patch('/:id', async (c) => {
 })
 
 projects.delete('/:id', async (c) => {
+  const userId = c.get('user').sub
   const id = parseIdParam(c.req.param('id'))
   const db = getDb(c.env.DB)
-  const deleted = await deleteProject(db, id)
+  const deleted = await deleteProject(db, id, userId)
 
   if (!deleted) {
     throw new ApiError(404, 'NOT_FOUND', 'Project not found.')
