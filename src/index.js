@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { rateLimiter } from 'hono-rate-limiter'
+
 import auth from './routes/auth.js'
 import projects from './routes/projects.js'
 import tasks from './routes/tasks.js'
@@ -9,6 +11,13 @@ import { sendError } from './utils/response.js'
 
 const app = new Hono()
 const api = new Hono()
+
+app.use(
+  rateLimiter({
+    binding: (c) => c.env.AUTH_LIMITER,
+    keyGenerator: (c) => c.req.header('cf-connecting-ip') ?? '',
+  }),
+)
 
 app.use('*', async (c, next) => {
   c.set('traceId', crypto.randomUUID())
@@ -34,6 +43,7 @@ api.route('/auth', auth)
 api.use('*', authenticate)
 api.route('/projects', projects)
 api.route('/tasks', tasks)
+
 app.route('/api', api)
 
 app.notFound((c) => {
@@ -45,12 +55,12 @@ app.onError((error, c) => {
     return sendError(c, error.status, error.code, error.message, error.details)
   }
 
-  console.error('unhandled error:', error)
+  console.error('Unhandled error:', error)
   return sendError(
     c,
     500,
     'INTERNAL_SERVER_ERROR',
-    'An expected server error occured',
+    'An unexpected server error occurred.',
   )
 })
 
