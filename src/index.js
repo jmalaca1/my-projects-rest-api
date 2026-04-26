@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import auth from './routes/auth.js'
 import projects from './routes/projects.js'
 import tasks from './routes/tasks.js'
@@ -9,11 +10,24 @@ import { sendError } from './utils/response.js'
 const app = new Hono()
 const api = new Hono()
 
-
 app.use('*', async (c, next) => {
   c.set('traceId', crypto.randomUUID())
   await next()
 })
+
+app.use(
+  '/api/*',
+  cors({
+    origin: (origin, c) => {
+      const allowed =
+        c.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) ?? []
+      return allowed.includes(origin) ? origin : null
+    },
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  }),
+)
 
 api.route('/auth', auth)
 
