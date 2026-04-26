@@ -1,18 +1,18 @@
 import { Hono } from 'hono'
 import { getDb } from '../data/db.js'
 
-import { createUser, findUserByEmail } from '../data/users.repository.js'
 import {
   createSession,
   deleteSessionByTokenHash,
   findSessionByTokenHash,
 } from '../data/sessions.repository.js'
+import { createUser, findUserByEmail } from '../data/users.repository.js'
 import { signAccessToken, refreshTokenExpiresAt } from '../utils/auth.js'
 import { parseJsonBody } from '../utils/body.js'
 import {
   generateRefreshToken,
-  hashToken,
   hashPassword,
+  hashToken,
   verifyPassword,
 } from '../utils/crypto.js'
 import { ApiError } from '../utils/errors.js'
@@ -20,8 +20,8 @@ import { sendResource } from '../utils/response.js'
 import {
   validateLogin,
   validateLogout,
-  validateRegister,
   validateRefresh,
+  validateRegister,
 } from '../utils/validation.js'
 
 const auth = new Hono()
@@ -31,21 +31,33 @@ auth.post('/register', async (c) => {
   const details = validateRegister(payload)
 
   if (details.length > 0) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid request data.', details)
+    throw new ApiError(
+      422,
+      'VALIDATION_ERROR',
+      'Some fields are invalid.',
+      details,
+    )
   }
 
-  const db = createDb(c.env.DB)
+  const db = getDb(c.env.DB)
   const existing = await findUserByEmail(db, payload.email)
 
   if (existing) {
-    throw new ApiError(400, 'USER_EXISTS', 'A user with this email already exists.')
+    throw new ApiError(
+      409,
+      'CONFLICT',
+      'A user with that email already exists.',
+    )
   }
-
   const passwordHash = await hashPassword(payload.password)
   const user = await createUser(db, { email: payload.email, passwordHash })
 
-  c.header('Location', `/api/auth/${user.id}`)
-  return sendResource(c, 201, { id: user.id, email: user.email })
+  c.header('Location', `/api/auth/users/${user.id}`)
+  return sendResource(
+    c,
+    { id: user.id, email: user.email, createdAt: user.createdAt },
+    201,
+  )
 })
 
 auth.post('/login', async (c) => {
@@ -53,18 +65,30 @@ auth.post('/login', async (c) => {
   const details = validateLogin(payload)
 
   if (details.length > 0) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid request data.', details)
+    throw new ApiError(
+      422,
+      'VALIDATION_ERROR',
+      'Some fields are invalid.',
+      details,
+    )
   }
 
   const db = getDb(c.env.DB)
   const user = await findUserByEmail(db, payload.email)
-  const credentialsError = new ApiError(400, 'INVALID_CREDENTIALS', 'Invalid email or password.')
+  const credentialsError = new ApiError(
+    401,
+    'UNAUTHORIZED',
+    'Invalid email or password.',
+  )
 
   if (!user) {
     throw credentialsError
   }
 
-  const passwordMatch = await verifyPassword(payload.password, user.passwordHash)
+  const passwordMatch = await verifyPassword(
+    payload.password,
+    user.passwordHash,
+  )
 
   if (!passwordMatch) {
     throw credentialsError
@@ -75,16 +99,16 @@ auth.post('/login', async (c) => {
     c.env.JWT_SECRET,
   )
 
-  const refreshToken = await generateRefreshToken()
+  const refreshToken = generateRefreshToken()
   const tokenHash = await hashToken(refreshToken)
-  const expiresAt = await refreshTokenExpiresAtToken(user.id)
+  const expiresAt = refreshTokenExpiresAt()
 
   await createSession(db, { userId: user.id, tokenHash, expiresAt })
 
-  return sendResource(c, 200, { 
-    accessToken: accessToken, 
+  return sendResource(c, {
+    accessToken: accessToken,
     refreshToken: refreshToken,
-    tokenType: 'Bearer', 
+    tokenType: 'Bearer',
   })
 })
 
@@ -93,19 +117,24 @@ auth.post('/refresh', async (c) => {
   const details = validateRefresh(payload)
 
   if (details.length > 0) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid request data.', details)
+    throw new ApiError(
+      422,
+      'VALIDATION_ERROR',
+      'Some fields are invalid.',
+      details,
+    )
   }
 
   const db = getDb(c.env.DB)
-  const tokenHash = await hashToken(payload.refresh_Token)
+  const tokenHash = await hashToken(payload.refresh_token)
   const session = await findSessionByTokenHash(db, tokenHash)
 
   if (!session) {
-    throw new ApiError(400, 'INVALID_REFRESH_TOKEN', 'Refresh token is invalid or has expired.')
+    throw new ApiError(401, 'UNAUTHORIZED', 'Invalid or expired refresh token.')
   }
 
   if (new Date(session.expiresAt) < new Date()) {
-    throw new ApiError(400, 'INVALID_REFRESH_TOKEN', 'Refresh token is invalid or has expired.')
+    throw new ApiError(401, 'UNAUTHORIZED', 'Invalid or expired refresh token.')
   }
 
   const accessToken = await signAccessToken(
@@ -113,9 +142,9 @@ auth.post('/refresh', async (c) => {
     c.env.JWT_SECRET,
   )
 
-  return sendResource(c, 200, {
-    accessToken: accessToken,
-    tokenType: 'Bearer',
+  return sendResource(c, {
+    access_token: accessToken,
+    token_type: 'Bearer',
   })
 })
 
@@ -124,11 +153,16 @@ auth.post('/logout', async (c) => {
   const details = validateLogout(payload)
 
   if (details.length > 0) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid request data.', details)
+    throw new ApiError(
+      422,
+      'VALIDATION_ERROR',
+      'Some fields are invalid.',
+      details,
+    )
   }
 
   const db = getDb(c.env.DB)
-  const tokenHash = await hashToken(payload.refreshToken)
+  const tokenHash = await hashToken(payload.refresh_token)
 
   await deleteSessionByTokenHash(db, tokenHash)
 
