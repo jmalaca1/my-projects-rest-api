@@ -22,6 +22,13 @@
       "when": 1776044955620,
       "tag": "0002_flashy_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1777237600636,
+      "tag": "0003_uneven_terrax",
+      "breakpoints": true
     }
   ]
 }
